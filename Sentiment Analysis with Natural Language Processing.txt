@@ -7,22 +7,43 @@ from nltk.corpus import state_union, stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cross_validation import train_test_split
 from sklearn import naive_bayes
-from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn import metrics
-df=pandas.read_json("/Users/ankursharma/Desktop/Semester_1/Machine_Learning/project/dataset/review.json", orient="columns")
+from sklearn.metrics import roc_auc_score, roc_curve, auc
+from sklearn.model_selection import validation_curve
+from sklearn.linear_model import Ridge
+from sklearn import model_selection
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.svm import SVC
+from sklearn import tree
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import average_precision_score
+
+
+#Reading input file
+
+df=pandas.read_json("/Users/ankursharma/Desktop/Semester_1/Machine_Learning/project/dataset/review1.json", orient="columns")
+
+
+# Preprocessing Start
+
 
 df[['stars']]=df[['stars']].replace([3],0)
 df[['stars']]=df[['stars']].replace([1,2],0)
 df[['stars']]=df[['stars']].replace([4,5],1)
 
-#df[['text']]=df[['text']].replace(['\n'], ' ')
-
+# Removing symbols and numbers
 pattern = re.compile("[^a-zA-z\n]")
-#print(df)
-#for text in df[['text']]:
-  #  output =re.sub(r'\d+', '',text)
- #   print(output, ' ', text)
 
+# Removing stop words
 list =[]
 finalOutput=""
 words = set(nltk.corpus.words.words())
@@ -32,17 +53,17 @@ for i,text in enumerate(df['text']):
     for w in tokens:
         if w in words:
             finalOutput = str(finalOutput)+ str(w)+" "
-    #output=output.replace('_','')
     finalOutput = finalOutput.strip()
-    #print(finalOutput)
     list.append(finalOutput)
     finalOutput = ""
-#print(list)
 data=pandas.DataFrame(data=list, columns=["text"])
 
 
-
+# Selected English language sentences/words
 stopset = set(stopwords.words('english'))
+
+# Selecting adjectives
+
 vector = TfidfVectorizer(use_idf=True, lowercase=True, strip_accents='ascii', stop_words=stopset)
 
 
@@ -50,55 +71,478 @@ y = df.stars
 
 x= vector.fit_transform(data.text)
 
-print(y)
-vector.get_feature_names()
+
+# Preprocessing end
 
 
+# High level comparison for models
 
-print(y.shape)
-print(x.shape)
+# prepare configuration for cross validation test harness
+seed = 7
+
+models = []
+models.append(('SVM', SVC()))
+models.append(('LR', LogisticRegression()))
+models.append(('MLP', MLPClassifier(hidden_layer_sizes=(20,20),random_state=89)))
+models.append(('KNN', KNeighborsClassifier()))
+models.append(('DT', DecisionTreeClassifier()))
+models.append(('RF', RandomForestClassifier()))
+models.append(('Bagging', BaggingClassifier()))
+models.append(('Adaboost', AdaBoostClassifier()))
+
+
+# evaluate each model in turn
+results = []
+names = []
+scoring = 'accuracy'
+for name, model in models:
+    kfold = model_selection.KFold(n_splits=10, random_state=seed)
+    cv_results = model_selection.cross_val_score(model, x, y, cv=kfold, scoring=scoring)
+    results.append(cv_results)
+    names.append(name)
+    msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+    print(msg)
+# boxplot algorithm comparison
+fig = plt.figure()
+fig.suptitle('Algorithm Comparison')
+ax = fig.add_subplot(111)
+plt.boxplot(results)
+ax.set_xticklabels(names)
+plt.show()
+
+
+# Naive Bayes
 
 X_train, X_test, y_train, y_test = train_test_split(x,y,random_state=42)
 
 clf = naive_bayes.MultinomialNB()
 clf.fit(X_train, y_train)
 
-roc_auc_score(y_test, clf.predict_proba(X_test)[:,1], average='weighted')
+print(roc_auc_score(y_test, clf.predict_proba(X_test)[:,1], average='weighted'))
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, clf.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
 
 
+# SVM
+
+clf4 = svm.SVC(kernel='linear', probability=True)
+clf4.fit(X_train, y_train)
+roc_auc_score(y_test, clf4.predict(X_test), average='weighted')
 
 
-review = np.array(["worst place. Although it has average environment"])
-print(review)
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, clf4.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+#Precision Plot
+
+y_score =  clf4.predict(X_test)
+from sklearn.metrics import average_precision_score
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
 
 
-print(clf.predict(vector.transform(review)))
+precision, recall, _ = precision_recall_curve(y_test, y_score)
 
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import cross_val_score
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
+
+
+#LogisticRegression 
+
+lr = LogisticRegression(solver='sag', tol=1e-1, C=1.e4 / x.shape[0])
+lr.fit(X_train, y_train)
+print(roc_auc_score(y_test, lr.predict_proba(X_test)[:,1], average='weighted'))
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, lr.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+#Precision Plot
+
+y_score =  lr.predict_proba(X_test)[:,1]
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
+
+# ANN
+
 mlp = MLPClassifier(hidden_layer_sizes=(80,80),random_state=89, max_iter=35 ,solver='lbfgs', learning_rate='constant')
 mlp.fit(X_train, y_train)
 
-roc_auc_score(y_test, mlp.predict_proba(X_test)[:,1], average='weighted')
+print(roc_auc_score(y_test, mlp.predict_proba(X_test)[:,1], average='weighted'))
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, mlp.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+# Precision Plot
+
+y_score =  mlp.predict_proba(X_test)[:,1]
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
+
+
+#KNN
+
+
+neigh = KNeighborsClassifier(n_neighbors=30)
+neigh.fit(X_train, y_train) 
+roc_auc_score(y_test, neigh.predict_proba(X_test)[:,1], average='weighted')
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, neigh.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+# Precision Plot
+y_score =  neigh.predict_proba(X_test)[:,1]
+from sklearn.metrics import average_precision_score
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
 
 
 
 
-#scores = cross_val_score(mlp, A, B, cv=10)
-#scores
-from sklearn import tree
+# Decision Tree
+
 clf1 = tree.DecisionTreeClassifier(splitter='best', max_depth=7, min_samples_split=55, min_samples_leaf=52, max_features=None, random_state=70)
 clf1.fit(X_train, y_train)
-roc_auc_score(y_test, clf1.predict_proba(X_test)[:,1], average='weighted')
+print(roc_auc_score(y_test, clf1.predict_proba(X_test)[:,1], average='weighted'))
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, clf1.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+# Precision Plot
+y_score =  clf1.predict_proba(X_test)[:,1]
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
+
+
+
 #Random Forest
-from sklearn.ensemble import RandomForestClassifier
 clf2 = RandomForestClassifier(n_estimators=100)
 clf2.fit(X_train, y_train)
-roc_auc_score(y_test, clf2.predict_proba(X_test)[:,1], average='weighted')
+print(roc_auc_score(y_test, clf2.predict_proba(X_test)[:,1], average='weighted'))
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, clf2.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+
+# Precision Plot
+y_score =  clf2.predict_proba(X_test)[:,1]
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
+
+
 
 #Bagging
-from sklearn.ensemble import BaggingClassifier
-from sklearn.neighbors import KNeighborsClassifier
-bagging = BaggingClassifier(KNeighborsClassifier(),max_samples=0.8, max_features=0.9)
+
+bagging = BaggingClassifier(KNeighborsClassifier(),n_jobs=2,max_samples=0.9, max_features=0.9,verbose=2, n_estimators= 60,warm_start = True, bootstrap_features= False)
 bagging.fit(X_train, y_train)
-roc_auc_score(y_test, bagging.predict_proba(X_test)[:,1], average='weighted')
+print(roc_auc_score(y_test, bagging.predict_proba(X_test)[:,1], average='weighted'))
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, bagging.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='red',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+# Precision Plot
+y_score =  bagging.predict_proba(X_test)[:,1]
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
+
+
+# Adaboost
+
+clf = AdaBoostClassifier(n_estimators=80, learning_rate=0.8, random_state= 80,algorithm='SAMME')
+clf.fit(X_train, y_train)
+print(roc_auc_score(y_test, clf.predict_proba(X_test)[:,1], average='weighted'))
+
+
+#plot
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(2):
+    fpr[i],tpr[i],_=roc_curve(y_test, clf.predict_proba(X_test)[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+plt.figure()
+lw = 1
+plt.plot(fpr[1], tpr[1], color='darkorange',
+         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[1])
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.show()
+
+# Precision Plot
+y_score =  clf.predict_proba(X_test)[:,1]
+average_precision = average_precision_score(y_test, y_score)
+
+print('Average precision-recall score: {0:0.2f}'.format(
+      average_precision))
+
+
+
+precision, recall, _ = precision_recall_curve(y_test, y_score)
+
+plt.step(recall, precision, color='b', alpha=0.2,
+         where='post')
+plt.fill_between(recall, precision, step='post', alpha=0.2,
+                 color='b')
+
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.ylim([0.0, 1.05])
+plt.xlim([0.0, 1.0])
+plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(
+          average_precision))
+plt.show()
