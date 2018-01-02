@@ -1,0 +1,32 @@
+Introduction
+This Report aims at giving introduction to the approaches and techniques that are followed for ‘Sentiment analysis’ for the reviews dataset that is provided in yelp. Sentiment analysis of customer reviews has a crucial impact on strategy for business development. This idea of predicting the sentiment of the users based on the text they provide can be extended to various other domains where the traditional approach consisted of text reviews. Some of the examples are: Rating restaurants, rating book or novels, rating YouTube videos based on the content it contains, or twitter sentiment analysis   
+
+Sentiment analysis have been lately proven very useful across multiple domains. It has enabled different firms across various domains to analyze user responses about their product/services. This helps them in getting real-time feedback from the users and implement then response in the improvement strategy of their respective product. 
+
+
+Problem Description
+In the problem provided, we have been provided with a set of reviews file in JSON format which contains feedbacks from various users about a hotel/restaurant. The comments given by the user has been provided under the column name ‘TEXT’, and correspondingly user has given rating to the eating joint in the form of ‘STARS’, ranging from 1 to 5, 5 being the highest. There are other parameters like user_id, review_id, useful etc. We have taken ‘STARS’ attribute as the class attribute that signifies the response of the user.
+The user text, that is used as an input parameter for sentiment analysis, is present in various languages with multiple notations within it. We have implemented multifarious preprocessing techniques to clean the data so as to make it usable for various Machine Learning models. 
+
+Our main goal is to build various Machine Learning classifiers/models on the given dataset and analyze and compare the output of each one of them. We have compered these classifiers depending upon their accuracy and ROC graphs.
+This gives us an idea about which classifier works better in real environment.
+
+The dataset that is being used has been fetched from yelp website: https://www.yelp.com/dataset/challenge
+The data that we are working in is in JSON format and contains file which has all the review data: ‘review.json’. The file contains various columns describing the reviews given by the users for a particular hotel/restaurant. 
+
+
+Pre-Processing:
+The following preprocessing steps have been implemented in the project:
+•	We have considered binary classes for simplification. The stars data column in the corpus has been binarized into 0 and 1. 4 and 5 stars reviews are thus considered positive by labeling them as 1 and the rest are considered negative and thus are labelled as 0.
+•	Removal of stopwords using stopwords from nltk.corpus
+•	Removal of all non-English words 
+•	Removal of all punctuations
+•	Removal of all digits
+
+
+Proposed Solution:
+
+Supervised and unsupervised learning are the two different ways of solving the classification problems. 
+Supervised learning is one of most widely used technique for classification problems. We have focused more on supervised learning for analyzing the sentiment of the reviews as it needs to learn from training data. 
+The following Machine Learning models have been used: 
+SVM, Logistic Regression, ANN, Decision Tree, K-nearest neighbors, Random Forest, Bagging and Adaboost
